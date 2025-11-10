@@ -22,6 +22,49 @@ const TOPICS = [
   "Xe",
 ];
 
+// Component Loading đẹp
+const LoadingScreen = ({ message = "Đang xử lý..." }) => (
+  <div
+    style={{
+      position: "fixed",
+      top: 0,
+      left: 0,
+      width: "100%",
+      height: "100%",
+      background: "rgba(255, 255, 255, 0.95)",
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "center",
+      alignItems: "center",
+      zIndex: 9999,
+      backdropFilter: "blur(5px)",
+    }}
+  >
+    <div
+      style={{
+        width: 60,
+        height: 60,
+        border: "6px solid #f3f3f3",
+        borderTop: "6px solid #1a73e8",
+        borderRadius: "50%",
+        animation: "spin 1s linear infinite",
+        marginBottom: 20,
+      }}
+    />
+    <p style={{ fontSize: "18px", color: "#333", margin: 0 }}>{message}</p>
+    <style jsx>{`
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+    `}</style>
+  </div>
+);
+
 function App() {
   const [step, setStep] = useState(1);
   const [username, setUsername] = useState("");
@@ -31,6 +74,7 @@ function App() {
   const [articles, setArticles] = useState([]);
   const [likedArticles, setLikedArticles] = useState(new Set());
   const [loading, setLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState(false); // Loading giữa các bước
   const [hasMore, setHasMore] = useState(true);
 
   const viewTimers = useRef(new Map());
@@ -42,9 +86,7 @@ function App() {
       await axios.post(
         `${API_BASE}/interactions`,
         { userId, articleId, interactionType: type },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
     } catch (err) {
       console.error(err);
@@ -56,9 +98,7 @@ function App() {
       await axios.post(
         `${API_BASE}/interactions/unlike`,
         { userId, articleId, interactionType: "LIKE" },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
     } catch (err) {
       console.error(err);
@@ -100,7 +140,7 @@ function App() {
       });
       const newArticles = res.data;
       setArticles((prev) => (append ? [...prev, ...newArticles] : newArticles));
-      setHasMore(newArticles.length === 10); // Giả sử backend trả 10 bài/lần
+      setHasMore(newArticles.length === 10);
       const liked = newArticles.filter((a) => a.isLiked).map((a) => a.id);
       setLikedArticles((prev) => new Set([...prev, ...liked]));
     } catch (err) {
@@ -113,6 +153,8 @@ function App() {
 
   // === ĐĂNG KÝ + ĐĂNG NHẬP ===
   const registerAndLogin = async () => {
+    if (!username.trim()) return;
+    setLoadingStep(true);
     const email = `user${Date.now()}@test.com`;
     const pass = Math.random().toString(36).slice(2);
     try {
@@ -136,24 +178,27 @@ function App() {
       }
     } catch (err) {
       alert("Lỗi kết nối server!");
+    } finally {
+      setLoadingStep(false);
     }
   };
 
   // === GỬI SỞ THÍCH ===
   const submitPrefs = async () => {
     if (selectedTopics.length === 0) return alert("Chọn ít nhất 1 chủ đề!");
+    setLoadingStep(true);
     try {
       await axios.put(
         `${API_BASE}/users/${userId}/preferences/init`,
         selectedTopics,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       await fetchRecommendations();
       setStep(3);
     } catch (err) {
       alert("Lỗi gửi sở thích!");
+    } finally {
+      setLoadingStep(false);
     }
   };
 
@@ -170,8 +215,14 @@ function App() {
         fontFamily: "Segoe UI, sans-serif",
         background: "#f4f6f9",
         minHeight: "100vh",
+        position: "relative",
       }}
     >
+      {/* Loading toàn màn hình giữa các bước */}
+      {loadingStep && (
+        <LoadingScreen message="Đang chuẩn bị trải nghiệm cho bạn..." />
+      )}
+
       {/* BƯỚC 1: NHẬP TÊN */}
       {step === 1 && (
         <div style={{ textAlign: "center", paddingTop: "100px" }}>
@@ -182,6 +233,7 @@ function App() {
             placeholder="Nhập tên của bạn..."
             value={username}
             onChange={(e) => setUsername(e.target.value)}
+            onKeyPress={(e) => e.key === "Enter" && registerAndLogin()}
             style={{
               padding: "16px",
               width: "320px",
@@ -190,22 +242,24 @@ function App() {
               border: "2px solid #ddd",
               margin: "20px",
             }}
+            disabled={loadingStep}
           />
           <br />
           <button
             onClick={registerAndLogin}
-            disabled={!username.trim()}
+            disabled={!username.trim() || loadingStep}
             style={{
               padding: "16px 40px",
               fontSize: "18px",
-              background: "#1a73e8",
+              background: loadingStep ? "#ccc" : "#1a73e8",
               color: "white",
               border: "none",
               borderRadius: "12px",
-              cursor: "pointer",
+              cursor: loadingStep ? "not-allowed" : "pointer",
+              opacity: loadingStep ? 0.7 : 1,
             }}
           >
-            Bắt Đầu Ngay
+            {loadingStep ? "Đang xử lý..." : "Bắt Đầu Ngay"}
           </button>
         </div>
       )}
@@ -231,15 +285,17 @@ function App() {
                   padding: "14px",
                   borderRadius: "12px",
                   textAlign: "center",
-                  cursor: "pointer",
+                  cursor: loadingStep ? "not-allowed" : "pointer",
                   boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
                   transition: "0.3s",
+                  opacity: loadingStep ? 0.6 : 1,
                 }}
               >
                 <input
                   type="checkbox"
                   checked={selectedTopics.includes(t)}
                   onChange={() =>
+                    !loadingStep &&
                     setSelectedTopics((prev) =>
                       prev.includes(t)
                         ? prev.filter((x) => x !== t)
@@ -247,6 +303,7 @@ function App() {
                     )
                   }
                   style={{ display: "none" }}
+                  disabled={loadingStep}
                 />
                 {t}
               </label>
@@ -255,16 +312,19 @@ function App() {
           <div style={{ textAlign: "center" }}>
             <button
               onClick={submitPrefs}
+              disabled={loadingStep}
               style={{
                 padding: "16px 50px",
                 fontSize: "18px",
-                background: "#34a853",
+                background: loadingStep ? "#ccc" : "#34a853",
                 color: "white",
                 border: "none",
                 borderRadius: "12px",
+                cursor: loadingStep ? "not-allowed" : "pointer",
+                opacity: loadingStep ? 0.7 : 1,
               }}
             >
-              Xem Tin Gợi Ý
+              {loadingStep ? "Đang tải tin..." : "Xem Tin Gợi Ý"}
             </button>
           </div>
         </div>
@@ -280,7 +340,7 @@ function App() {
             hôm nay
           </h2>
 
-          {articles.length === 0 ? (
+          {articles.length === 0 && !loading ? (
             <p style={{ textAlign: "center", fontSize: "20px", color: "#666" }}>
               Đang tải tin tức...
             </p>
@@ -288,9 +348,9 @@ function App() {
             <div
               style={{
                 width: "100%",
-                maxWidth: "600px", // Giới hạn tối đa (desktop)
-                margin: "0 auto", // Căn giữa
-                padding: "0 16px", // Khoảng cách 2 bên trên mobile
+                maxWidth: "600px",
+                margin: "0 auto",
+                padding: "0 16px",
                 boxSizing: "border-box",
               }}
             >
@@ -304,7 +364,6 @@ function App() {
                 loop={false}
                 onReachEnd={handleReachEnd}
                 onSlideChange={() => {
-                  // Khi chuyển slide → tính VIEW cho slide cũ
                   if (swiperRef.current) {
                     const prevIndex = swiperRef.current.previousIndex;
                     if (prevIndex !== undefined) {
@@ -399,7 +458,6 @@ function App() {
                         </div>
                       </div>
 
-                      {/* NÚT LIKE */}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -425,7 +483,7 @@ function App() {
                   </SwiperSlide>
                 ))}
 
-                {/* SLIDE CUỐI: LOADING */}
+                {/* Loading khi kéo đến cuối */}
                 {loading && (
                   <SwiperSlide>
                     <div
@@ -436,6 +494,17 @@ function App() {
                         color: "#666",
                       }}
                     >
+                      <div
+                        style={{
+                          width: 40,
+                          height: 40,
+                          border: "5px solid #f3f3f3",
+                          borderTop: "5px solid #1a73e8",
+                          borderRadius: "50%",
+                          animation: "spin 1s linear infinite",
+                          margin: "0 auto 20px",
+                        }}
+                      />
                       Đang tải tin mới cho bạn...
                     </div>
                   </SwiperSlide>
@@ -445,6 +514,18 @@ function App() {
           )}
         </div>
       )}
+
+      {/* CSS cho spinner */}
+      <style jsx>{`
+        @keyframes spin {
+          0% {
+            transform: rotate(0deg);
+          }
+          100% {
+            transform: rotate(360deg);
+          }
+        }
+      `}</style>
     </div>
   );
 }
