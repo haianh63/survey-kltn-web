@@ -332,7 +332,7 @@ function App() {
 
       {/* BƯỚC 3: SLIDER TIN TỨC */}
       {step === 3 && (
-        <div style={{ padding: "20px", maxWidth: "1000px", margin: "0 auto" }}>
+        <div style={{ padding: "20px", maxWidth: "400px", margin: "0 auto" }}>
           <h2
             style={{ textAlign: "center", margin: "20px 0", fontSize: "28px" }}
           >
@@ -387,7 +387,7 @@ function App() {
                         borderRadius: "20px",
                         overflow: "hidden",
                         boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
-                        height: "80vh",
+
                         display: "flex",
                         flexDirection: "column",
                       }}
