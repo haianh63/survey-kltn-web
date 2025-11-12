@@ -135,9 +135,12 @@ function App() {
     if (loading || !hasMore) return;
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE}/recommendations/${userId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await axios.get(
+        `${API_BASE}/recommendations/${userId}?articleLimit=900`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
       const newArticles = res.data;
       setArticles((prev) => (append ? [...prev, ...newArticles] : newArticles));
       setHasMore(newArticles.length === 10);
